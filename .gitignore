@@ -1,0 +1,44 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+ENV/
+
+# Environment
+.env
+*.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# Local config
+settings.local.json
+
+# Static dependencies (loaded from CDN in production)
+系统/static/css/bootstrap.min.css
+系统/static/js/bootstrap.bundle.min.js
+系统/static/js/echarts.min.js
+系统/static/js/jquery.min.js
+系统/static/js/main.js
