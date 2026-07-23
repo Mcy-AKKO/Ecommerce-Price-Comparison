@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 25px;
+        color: white;
+        transition: transform 0.3s;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+    .stat-card:hover { transform: translateY(-5px); }
+    .stat-card-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .stat-card-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .stat-card-success { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .stat-number { font-size: 2.5rem; font-weight: bold; margin-bottom: 10px; }
+    .stat-icon { position: absolute; right: 25px; top: 25px; font-size: 3rem; opacity: 0.3; }
+    .recent-activity {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+    .activity-item {
+        padding: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.3s;
+    }
+    .activity-item:hover { background: #f8f9fa; }
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+    }
+    .activity-icon-primary { background: rgba(102, 126, 234, 0.1); color: #667eea; }
+    .activity-icon-success { background: rgba(40, 167, 69, 0.1); color: #28a745; }
+    .activity-icon-warning { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-top: 20px;
+    }
+    .quick-action-btn {
+        padding: 20px;
+        text-align: center;
+        background: white;
+        border-radius: 12px;
+        transition: all 0.3s;
+        text-decoration: none;
+        color: #333;
+    }
+    .quick-action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    .quick-action-icon { font-size: 2rem; margin-bottom: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row g-4 mb-4">
+        <div class="col-md-3" onclick="location.href='{{ url_for('admin_users') }}'">
+            <div class="stat-card">
+                <div class="stat-number">{{ user_count }}</div>
+                <div class="stat-label">总用户数</div>
+                <i class="bi bi-people stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-md-3" onclick="location.href='{{ url_for('admin_analysis') }}'">
+            <div class="stat-card stat-card-warning">
+                <div class="stat-number">{{ product_count }}</div>
+                <div class="stat-label">商品总数</div>
+                <i class="bi bi-box-seam stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-md-3" onclick="location.href='{{ url_for('admin_requests') }}'">
+            <div class="stat-card stat-card-info">
+                <div class="stat-number">{{ pending_requests }}</div>
+                <div class="stat-label">待处理请求</div>
+                <i class="bi bi-clock-history stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-md-3" onclick="location.href='{{ url_for('admin_analysis') }}'">
+            <div class="stat-card stat-card-success">
+                <div class="stat-number">{{ keyword_count }}</div>
+                <div class="stat-label">关键词数量</div>
+                <i class="bi bi-tags stat-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="recent-activity">
+                <h6 class="mb-3"><i class="bi bi-clock-history"></i> 最近活动</h6>
+                <div id="recent-activities">
+                    <div class="text-center text-muted py-4">
+                        <div class="loading-spinner"></div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="recent-activity">
+                <h6 class="mb-3"><i class="bi bi-lightning-charge"></i> 快捷操作</h6>
+                <div class="quick-actions">
+                    <a href="{{ url_for('admin_users') }}" class="quick-action-btn">
+                        <div class="quick-action-icon"><i class="bi bi-person-plus"></i></div>
+                        <div>用户管理</div>
+                    </a>
+                    <a href="{{ url_for('admin_requests') }}" class="quick-action-btn">
+                        <div class="quick-action-icon"><i class="bi bi-check2-circle"></i></div>
+                        <div>审核请求</div>
+                    </a>
+                    <a href="{{ url_for('admin_crawl') }}" class="quick-action-btn">
+                        <div class="quick-action-icon"><i class="bi bi-cloud-download"></i></div>
+                        <div>爬取商品</div>
+                    </a>
+                    <a href="{{ url_for('admin_analysis') }}" class="quick-action-btn">
+                        <div class="quick-action-icon"><i class="bi bi-graph-up"></i></div>
+                        <div>数据分析</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        loadRecentActivities();
+    });
+
+    function loadRecentActivities() {
+        $.ajax({
+            url: '/admin/api/requests',
+            data: { page: 1, per_page: 10 },
+            success: function(data) {
+                const container = $('#recent-activities');
+                if (!data.requests || data.requests.length === 0) {
+                    container.html('<div class="text-center text-muted py-4">暂无活动记录</div>');
+                    return;
+                }
+
+                let html = '';
+                data.requests.forEach(r => {
+                    html += `
+                        <div class="activity-item d-flex align-items-center">
+                            <div class="activity-icon ${getIconClass(r.status)}">
+                                <i class="bi ${getIcon(r.status)}"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <strong>${escapeHtml(r.username)}</strong>
+                                    <small class="text-muted">${r.created_at}</small>
+                                </div>
+                                <div class="small text-muted">
+                                    请求爬取: <strong>${escapeHtml(r.keyword)}</strong>
+                                    ${r.status === 'completed' ? ` - 成功爬取 ${r.result_count} 条商品` : ''}
+                                    ${r.status === 'rejected' ? ` - ${escapeHtml(r.remark) || '已拒绝'}` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.html(html);
+            },
+            error: function() {
+                $('#recent-activities').html('<div class="text-center text-danger py-4">加载失败</div>');
+            }
+        });
+    }
+
+    function getIconClass(status) {
+        if (status === 'completed') return 'activity-icon-success';
+        if (status === 'pending') return 'activity-icon-warning';
+        return 'activity-icon-primary';
+    }
+
+    function getIcon(status) {
+        if (status === 'completed') return 'bi-check-circle';
+        if (status === 'pending') return 'bi-clock';
+        if (status === 'rejected') return 'bi-x-circle';
+        return 'bi-question-circle';
+    }
+</script>
+{% endblock %}
