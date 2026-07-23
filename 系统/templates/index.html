@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero-section"
+         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 85vh; display: flex; align-items: center;">
+    <div class="container py-5">
+        <div class="row align-items-center">
+            <div class="col-lg-6 text-white mb-5 mb-lg-0">
+                <h1 class="display-2 fw-bold mb-4 animate-slide-up">
+                    发现全网
+                    <span class="text-warning">最低价</span>
+                </h1>
+                <p class="lead mb-4 opacity-90 fs-4">
+                    智能比价 · 实时更新 · 省钱神器
+                </p>
+                <p class="mb-4 opacity-75">
+                    整合慢慢买、什么值得买等多家平台数据，帮您找到最划算的商品
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('user_products') }}" class="btn btn-light btn-lg px-4 rounded-pill fw-bold">
+                        <i class="bi bi-grid-3x3-gap-fill"></i> 开始发现好物
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-4 rounded-pill fw-bold">
+                        <i class="bi bi-person-plus-fill"></i> 免费注册
+                    </a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg px-4 rounded-pill">
+                        <i class="bi bi-box-arrow-in-right"></i> 登录
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<section class="container py-5 my-4">
+    <div class="text-center mb-5">
+        <h2 class="fw-bold mb-3">为什么选择 <span class="text-primary">我们</span></h2>
+        <p class="text-muted fs-5">智能比价，让每一分钱都花得值得</p>
+    </div>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card-modern text-center p-4 h-100">
+                <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3"
+                     style="width: 70px; height: 70px;">
+                    <i class="bi bi-cloud-download fs-1 text-primary m-auto"></i>
+                </div>
+                <h5 class="fw-bold mb-3">多源爬取</h5>
+                <p class="text-muted">整合慢慢买、什么值得买等多家平台，实时抓取最新优惠</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card-modern text-center p-4 h-100">
+                <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3"
+                     style="width: 70px; height: 70px;">
+                    <i class="bi bi-graph-up fs-1 text-success m-auto"></i>
+                </div>
+                <h5 class="fw-bold mb-3">智能分析</h5>
+                <p class="text-muted">价格趋势、平台对比、历史最低价，一目了然</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 最新商品预览 -->
+<section class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0">
+            <i class="bi bi-flame text-danger"></i> 热门推荐
+        </h3>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('user_products') }}" class="text-decoration-none">
+            查看更多 <i class="bi bi-arrow-right"></i>
+        </a>
+        {% endif %}
+    </div>
+    <div id="preview-products" class="row g-4">
+        <div class="col-12 text-center py-5">
+            <div class="loading-spinner"></div>
+            <p class="text-muted mt-2">加载中...</p>
+        </div>
+    </div>
+</section>
+
+<style>
+    .animate-slide-up { animation: slideUp 0.6s ease-out; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    .cursor-pointer { cursor: pointer; transition: all 0.2s ease; }
+    .cursor-pointer:hover { transform: translateY(-2px); filter: brightness(1.05); }
+    .hot-keyword { background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white; border: 1px solid rgba(255,255,255,0.3); }
+    .hot-keyword:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+    .preview-card { transition: all 0.3s ease; cursor: pointer; }
+    .preview-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    .price-tag { font-size: 1.25rem; font-weight: 700; color: #ef4444; }
+    .platform-tag { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 8px; background: #f3f4f6; color: #6b7280; }
+</style>
+
+<script>
+    $(document).ready(function() {
+        loadPreviewProducts();
+
+        $('.hot-keyword').click(function() {
+            var keyword = $(this).data('keyword');
+            {% if current_user.is_authenticated %}
+                window.location.href = '/user/products?keyword=' + encodeURIComponent(keyword);
+            {% else %}
+                showToast('请先登录查看商品', 'warning');
+                setTimeout(function() { window.location.href = '/login'; }, 1500);
+            {% endif %}
+        });
+    });
+
+    function loadPreviewProducts() {
+        $.ajax({
+            url: '/user/api/products',
+            data: {
+                page: 1,
+                per_page: 4,
+                sort_by: 'publish_date',
+                sort_order: 'desc'
+            },
+            success: function(data) {
+                var container = $('#preview-products');
+                if (!data.products || data.products.length === 0) {
+                    container.html('<div class="col-12 text-center py-5 text-muted">暂无商品数据</div>');
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < data.products.length; i++) {
+                    var p = data.products[i];
+                    html += '<div class="col-md-3 col-sm-6">';
+                    html += '<div class="card-modern preview-card h-100" onclick="window.open(\'' + p.url + '\', \'_blank\')">';
+                    html += '<div class="p-3">';
+                    html += '<div class="position-relative mb-3">';
+                    if (p.image_url) {
+                        html += '<img src="' + p.image_url + '" class="w-100 rounded-3" style="height: 160px; object-fit: cover;" onerror="this.src=\'https://via.placeholder.com/300x200?text=No+Image\'">';
+                    } else {
+                        html += '<div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height: 160px;"><i class="bi bi-image fs-1 text-muted"></i></div>';
+                    }
+                    html += '<span class="platform-tag position-absolute top-0 end-0 m-2">' + escapeHtml(p.platform || '未知平台') + '</span>';
+                    html += '</div>';
+                    html += '<h6 class="fw-bold mb-2" style="height: 44px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">' + escapeHtml(p.title) + '</h6>';
+                    html += '<div class="price-tag">' + escapeHtml(p.price_raw || '¥' + p.price_value) + '</div>';
+                    html += '<div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted"><i class="bi bi-calendar"></i> ' + p.publish_date + '</small><small class="text-primary">查看详情 <i class="bi bi-arrow-right"></i></small></div>';
+                    html += '</div></div></div>';
+                }
+                container.html(html);
+            },
+            error: function(xhr, status, error) {
+                console.error('加载失败:', error);
+                $('#preview-products').html('<div class="col-12 text-center py-5 text-muted">加载失败，请刷新重试</div>');
+            }
+        });
+    }
+</script>
+{% endblock %}
