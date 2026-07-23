@@ -1,0 +1,723 @@
+{% extends "base.html" %}
+
+<!-- ==========================================
+     页面专属 CSS 样式
+     ========================================== -->
+{% block extra_css %}
+<style>
+    /* --- 爬取卡片区域样式 --- */
+    .crawl-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* 紫蓝渐变背景 */
+        border-radius: 16px;
+        padding: 30px;
+        color: white;
+    }
+
+    /* 关键词输入框：半透明背景，白色文字 */
+    .keyword-input {
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.3);
+        color: white;
+        font-size: 1.2rem;
+        padding: 15px 20px;
+        height: 54px;
+    }
+    .keyword-input:focus {
+        background: rgba(255,255,255,0.3);
+        border-color: white;
+        color: white;
+        box-shadow: none; /* 移除默认聚焦阴影 */
+    }
+    .keyword-input::placeholder { color: rgba(255,255,255,0.7); }
+
+    /* 爬取按钮：白色背景，渐变文字颜色 */
+    .crawl-btn {
+        background: white;
+        color: #667eea;
+        border: none;
+        padding: 12px 30px;
+        font-weight: bold;
+        font-size: 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        height: 54px;
+    }
+    .crawl-btn:hover {
+        transform: translateY(-2px); /* 悬停上浮 */
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        color: #764ba2;
+    }
+    .crawl-btn:disabled {
+        background: rgba(255,255,255,0.5);
+        color: #555;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* 热门关键词标签 */
+    .keyword-tag {
+        display: inline-block;
+        padding: 6px 14px;
+        margin: 4px;
+        background: rgba(255,255,255,0.25);
+        color: white;
+        border-radius: 20px;
+        cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.4);
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+    .keyword-tag:hover {
+        background: rgba(255,255,255,0.4);
+        transform: translateY(-2px);
+    }
+
+    /* --- 结果展示区域 --- */
+    .result-area {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        margin-top: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.05);
+        display: none; /* 默认隐藏，JS控制显示 */
+    }
+    .result-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #28a745; /* 绿色数字 */
+    }
+    .progress {
+        height: 12px;
+        border-radius: 6px;
+        margin-top: 15px;
+    }
+    .progress-bar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 6px;
+        transition: width 0.4s ease;
+    }
+
+    /* --- 历史记录表格 --- */
+    .history-table {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        margin-top: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    /* 不同状态的徽章颜色 */
+    .status-completed { background: #d1fae5; color: #10b981; }
+    .status-pending   { background: #fef3c7; color: #d97706; }
+    .status-rejected  { background: #fee2e2; color: #ef4444; }
+
+    /* --- 次数显示盒子 --- */
+    .quota-box {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255,255,255,0.2);
+        padding: 8px 16px;
+        border-radius: 50px;
+        backdrop-filter: blur(4px); /* 毛玻璃效果 */
+    }
+    .quota-num {
+        font-size: 1.3rem;
+        font-weight: bold;
+    }
+
+    /* --- 广告弹窗样式 --- */
+    #ad-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 1050;
+        align-items: center;
+        justify-content: center;
+    }
+    .ad-modal {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 640px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: adPop 0.3s ease; /* 弹出动画 */
+    }
+    @keyframes adPop {
+        from { transform: scale(0.9); opacity: 0; }
+        to   { transform: scale(1); opacity: 1; }
+    }
+    .ad-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 15px 20px;
+        color: white;
+    }
+    .ad-body {
+        position: relative;
+        height: 320px;
+        background: #f8f9fa;
+    }
+    .ad-video-wrap {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #ad-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none; /* 默认隐藏，有视频源时由JS显示 */
+    }
+    .ad-placeholder {
+        text-align: center;
+        color: #6c757d;
+    }
+    .ad-countdown {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(220,53,69,0.9); /* 红色背景 */
+        color: white;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    .ad-footer {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- ==========================================
+         第一部分：爬取输入区
+         ========================================== -->
+    <div class="crawl-card mb-4">
+        <div class="row align-items-center mb-3">
+            <div class="col-md-6">
+                <h3 class="mb-2">
+                    <i class="bi bi-cloud-download"></i> 爬取商品数据
+                </h3>
+                <p class="mb-0 opacity-75">
+                    输入关键词，直接从慢慢买和什么值得买爬取最新商品数据
+                </p>
+            </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                <!-- 剩余次数显示与看广告按钮 -->
+                <!-- 修改后的配额显示区域：增加"申请爬取"按钮 -->
+                <div class="quota-box">
+                    <span><i class="bi bi-coin"></i> 剩余次数:</span>
+                    <span class="quota-num" id="quota-display">0</span>
+
+                    <!-- 看广告按钮 -->
+                    <button class="btn btn-warning btn-sm rounded-pill ms-2" id="btn-watch-ad" onclick="openAdModal()">
+                        <i class="bi bi-play-circle"></i> 看广告获取
+                    </button>
+
+                    <!-- 申请爬取按钮（与看广告并列） -->
+                    <button class="btn btn-success btn-sm rounded-pill ms-2" id="btn-request-crawl" onclick="openCrawlRequestModal()" style="display:none;">
+                        <i class="bi bi-send"></i> 申请爬取
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关键词输入框与提交按钮 -->
+        <div class="row g-2 mb-3">
+            <div class="col-md-9">
+                <input type="text"
+                       id="keyword-input"
+                       class="form-control keyword-input"
+                       placeholder="输入关键词，如：iPhone 17、耳机、充电宝...">
+            </div>
+            <div class="col-md-3">
+                <button id="crawl-btn" class="btn crawl-btn w-100">
+                    <i class="bi bi-cloud-download"></i> 开始爬取
+                </button>
+            </div>
+        </div>
+
+        <!-- 热门关键词快捷标签 -->
+        <div>
+            <small class="opacity-75 me-2">热门：</small>
+            <span class="keyword-tag" data-keyword="iPhone 17">iPhone 17</span>
+            <span class="keyword-tag" data-keyword="华为 Mate 70">华为 Mate 70</span>
+            <span class="keyword-tag" data-keyword="小米 15">小米 15</span>
+            <span class="keyword-tag" data-keyword="耳机">耳机</span>
+            <span class="keyword-tag" data-keyword="充电宝">充电宝</span>
+            <span class="keyword-tag" data-keyword="机械键盘">机械键盘</span>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         第二部分：爬取结果展示区
+         ========================================== -->
+    <div class="result-area" id="result-area">
+        <div class="text-center">
+            <!-- 动态图标：加载中或完成/失败 -->
+            <div id="result-icon">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 2.5rem;"></i>
+            </div>
+            <h5 id="result-message" class="mt-2 mb-1">爬取完成！</h5>
+            <!-- 爬取到的商品数量 -->
+            <div class="result-number" id="result-count">0</div>
+            <div class="text-muted mb-2">条商品数据已入库</div>
+
+            <!-- 进度条 -->
+            <div class="progress">
+                <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+            </div>
+
+            <!-- 操作按钮：查看商品或数据分析 -->
+            <div id="goto-btns" class="mt-3" style="display:none;">
+                <a id="goto-products-btn"
+                   href="#"
+                   class="btn btn-primary me-2">
+                    <i class="bi bi-grid-3x3-gap"></i> 查看商品
+                </a>
+                <a id="goto-analysis-btn"
+                   href="{{ url_for('user_analysis') }}"
+                   class="btn btn-outline-primary">
+                    <i class="bi bi-graph-up"></i> 数据分析
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         第三部分：历史爬取记录
+         ========================================== -->
+    <div class="history-table">
+        <h6 class="mb-3">
+            <i class="bi bi-clock-history"></i> 我的爬取记录
+        </h6>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>关键词</th>
+                        <th>状态</th>
+                        <th>爬取数量</th>
+                        <th>时间</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody">
+                    <!-- 初始加载状态 -->
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">
+                            <div class="loading-spinner"></div> 加载中...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ==========================================
+     广告弹窗组件
+     ========================================== -->
+<div id="ad-overlay">
+    <div class="ad-modal">
+        <div class="ad-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-play-btn"></i> 观看广告获取爬取次数</h5>
+            <button type="button" class="btn-close btn-close-white" onclick="closeAdModal()" aria-label="Close"></button>
+        </div>
+        <div class="ad-body">
+            <!-- 视频播放器：如果有真实视频文件，JS会尝试播放 -->
+            <video id="ad-video" muted playsinline>
+                <source src="/static/ads/ad1.mp4" type="video/mp4">
+                您的浏览器不支持视频播放
+            </video>
+
+            <!-- 模拟广告画面：当没有视频文件或播放失败时显示 -->
+            <div id="ad-placeholder" class="ad-video-wrap ad-placeholder">
+                <div>
+                    <i class="bi bi-film" style="font-size: 4rem; color: #667eea; opacity: 0.5;"></i>
+                    <h4 class="mt-3 text-dark">广告播放中...</h4>
+                    <p class="text-muted mb-0">请耐心观看完整广告以获得 <strong>1次</strong> 爬取机会</p>
+                </div>
+            </div>
+
+            <!-- 右上角倒计时 -->
+            <div class="ad-countdown">
+                <i class="bi bi-clock"></i> <span id="countdown-text">15</span>s
+            </div>
+        </div>
+        <div class="ad-footer">
+            <!-- 底部按钮：倒计时期间禁用，结束后变为“获取次数” a-->
+            <button id="btn-ad-action" class="btn btn-secondary w-100" disabled onclick="closeAdModal()">
+                <i class="bi bi-hourglass-split"></i> 广告播放中... (<span id="btn-countdown">15</span>)
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    loadQuota();   // 页面加载时获取剩余次数
+    loadHistory(); // 页面加载时获取历史记录
+
+    // 绑定爬取按钮点击事件
+    $('#crawl-btn').click(function() {
+        var keyword = $('#keyword-input').val().trim();
+        startCrawl(keyword);
+    });
+
+    // 绑定回车键触发爬取
+    $('#keyword-input').keypress(function(e) {
+        if (e.which === 13) {
+            var keyword = $(this).val().trim();
+            startCrawl(keyword);
+        }
+    });
+
+    // 绑定热门关键词标签点击事件
+    $('.keyword-tag').click(function() {
+        var keyword = $(this).data('keyword');
+        $('#keyword-input').val(keyword); // 填充输入框
+        startCrawl(keyword);              // 立即开始爬取
+    });
+});
+
+// ========== 全局状态变量 ==========
+let currentQuota = 0;       // 当前剩余爬取次数
+let adTimer = null;         // 广告倒计时定时器ID
+let pendingKeyword = null;  // 因次数不足而暂停的爬取任务关键词
+
+// ========== 1. 次数管理逻辑 ==========
+// 【修改】loadQuota 函数：增加按钮显示控制
+function loadQuota() {
+    $.get('/user/api/quota', function(data) {
+        currentQuota = data.quota;
+        $('#quota-display').text(currentQuota);
+
+        // 【新增】控制按钮显示逻辑
+        if (currentQuota <= 0) {
+            // 次数为0时，显示看广告和申请爬取两个选项
+            $('#btn-watch-ad').show();
+            $('#btn-request-crawl').show();
+
+            // 广告冷却中则禁用看广告按钮
+            if (!data.can_watch_ad) {
+                $('#btn-watch-ad').prop('disabled', true)
+                    .html('<i class="bi bi-hourglass-split"></i> 冷却 ' + data.cooldown_seconds + 's');
+                setTimeout(loadQuota, (data.cooldown_seconds + 1) * 1000);
+            } else {
+                $('#btn-watch-ad').prop('disabled', false)
+                    .html('<i class="bi bi-play-circle"></i> 看广告获取');
+            }
+        } else {
+            // 有次数时，隐藏这两个按钮（原有逻辑）
+            $('#btn-watch-ad').hide();
+            $('#btn-request-crawl').hide();
+        }
+    });
+}
+// 【新增】打开申请爬取弹窗
+function openCrawlRequestModal() {
+    $('#modal-current-quota').text(currentQuota);
+
+    // 如果输入框有之前的关键词，自动带过来
+    var currentKeyword = $('#keyword-input').val().trim();
+    if (currentKeyword) {
+        $('#crawl-keyword').val(currentKeyword);
+    }
+
+    $('#crawlRequestModal').modal('show');
+}
+
+// 【新增】提交爬取申请
+function submitCrawlRequest() {
+    var keyword = $('#crawl-keyword').val().trim();
+    var reason = $('#crawl-reason').val().trim();
+
+    if (!keyword) {
+        showToast('请输入要爬取的关键词', 'warning');
+        return;
+    }
+
+    var btn = $('#btn-submit-crawl-request');
+    btn.prop('disabled', true).html('<span class="loading-spinner"></span> 提交中...');
+
+    $.ajax({
+        url: '/user/request_crawl',  // 你已有的路由！
+        type: 'POST',
+        data: {
+            keyword: keyword,
+            reason: reason  // 申请理由
+        },
+        success: function(response) {
+            showToast('爬取申请已提交，等待管理员处理', 'success');
+            $('#crawlRequestModal').modal('hide');
+            $('#crawl-keyword').val('');
+            $('#crawl-reason').val('');
+            // 刷新历史记录
+            if (typeof loadHistory === 'function') {
+                loadHistory();
+            }
+        },
+        error: function(xhr) {
+            showToast('申请提交失败，请重试', 'error');
+        },
+        complete: function() {
+            btn.prop('disabled', false).html('<i class="bi bi-send"></i> 提交申请');
+        }
+    });
+}
+// ========== 2. 核心爬取逻辑 ==========
+function startCrawl(keyword) {
+    // 基础校验
+    if (!keyword) {
+        showToast('请输入关键词', 'warning');
+        return;
+    }
+
+    // 次数校验：如果次数为0，保存关键词并打开广告弹窗
+    if (currentQuota <= 0) {
+        pendingKeyword = keyword;
+        openAdModal();
+        return;
+    }
+
+    var btn = $('#crawl-btn');
+    // 更新按钮状态为加载中
+    btn.html('<span class="loading-spinner"></span> 爬取中...').prop('disabled', true);
+
+    // 显示结果区域，重置UI状态
+    $('#result-area').show();
+    $('#result-icon').html('<span class="loading-spinner" style="width:40px;height:40px;border-width:3px;"></span>');
+    $('#result-message').text('正在爬取数据，请稍候...');
+    $('#result-count').text('-');
+    $('#progress-bar').css('width', '40%').removeClass('bg-danger');
+    $('#goto-btns').hide();
+
+    // 发起 AJAX 请求
+    $.ajax({
+        url: '/user/api/crawl_with_quota',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ keyword: keyword }),
+        success: function(data) {
+            // 爬取成功 UI 更新
+            $('#result-icon').html('<i class="bi bi-check-circle-fill text-success" style="font-size:2.5rem;"></i>');
+            $('#result-message').text('爬取完成！关键词：' + keyword);
+            $('#result-count').text(data.count);
+            $('#progress-bar').css('width', '100%');
+
+            // 更新前端记录的剩余次数
+            currentQuota = data.quota;
+            $('#quota-display').text(currentQuota);
+
+            // 设置“查看商品”按钮链接
+            $('#goto-products-btn').attr('href', '{{ url_for("user_products") }}');
+            $('#goto-btns').show();
+
+            showToast('成功爬取 ' + data.count + ' 条商品数据', 'success');
+            loadHistory(); // 刷新历史记录
+        },
+        error: function(xhr) {
+            var resp = xhr.responseJSON || {};
+
+            // 特殊情况：后端返回需要看广告（可能并发导致次数耗尽）
+            if (resp.need_ad) {
+                pendingKeyword = keyword;
+                openAdModal();
+                // 重置结果区和按钮
+                $('#result-area').hide();
+                btn.html('<i class="bi bi-cloud-download"></i> 开始爬取').prop('disabled', false);
+                return;
+            }
+
+            // 普通错误处理
+            var msg = resp.error || '爬取失败，请重试';
+            $('#result-icon').html('<i class="bi bi-x-circle-fill text-danger" style="font-size:2.5rem;"></i>');
+            $('#result-message').text(msg);
+            $('#result-count').text('0');
+            $('#progress-bar').css('width', '100%').addClass('bg-danger'); // 进度条变红
+            showToast(msg, 'error');
+
+            // 如果后端返回了最新次数，同步更新
+            if (resp.quota !== undefined) {
+                currentQuota = resp.quota;
+                $('#quota-display').text(currentQuota);
+            }
+        },
+        complete: function() {
+            // 无论成功失败，恢复按钮状态
+            btn.html('<i class="bi bi-cloud-download"></i> 开始爬取').prop('disabled', false);
+        }
+    });
+}
+
+// ========== 3. 广告系统逻辑 ==========
+function openAdModal() {
+    // 显示弹窗
+    $('#ad-overlay').css('display', 'flex').hide().fadeIn(200);
+    $('#ad-countdown').show();
+
+    // 尝试播放视频
+    var video = document.getElementById('ad-video');
+    var placeholder = $('#ad-placeholder');
+    if (video) {
+        video.style.display = 'block';
+        placeholder.hide();
+        video.currentTime = 0;
+        // 尝试播放，如果失败（如无源文件）则捕获异常并显示占位图
+        video.play().catch(function() {
+ video.style.display = 'none';
+            placeholder.show();
+        });
+    }
+
+    startAdCountdown(); // 开始倒计时
+}
+
+function startAdCountdown() {
+    let seconds = 15;  // 广告时长设定为 15 秒
+    $('#countdown-text').text(seconds);
+    $('#btn-countdown').text(seconds);
+
+    var btn = $('#btn-ad-action');
+    // 初始化按钮状态：禁用，灰色
+    btn.prop('disabled', true)
+       .removeClass('btn-success').addClass('btn-secondary')
+       .attr('onclick', 'closeAdModal()') // 此时点击只能关闭
+       .html('<i class="bi bi-hourglass-split"></i> 广告播放中... (' + seconds + ')');
+
+    // 启动定时器
+    adTimer = setInterval(function() {
+        seconds--;
+        $('#countdown-text').text(seconds);
+        $('#btn-countdown').text(seconds);
+
+        // 倒计时结束
+        if (seconds <= 0) {
+            clearInterval(adTimer);
+            // 更新按钮状态：启用，绿色，点击执行 finishAd
+            btn.prop('disabled', false)
+               .removeClass('btn-secondary').addClass('btn-success')
+               .attr('onclick', 'finishAd()')
+               .html('<i class="bi bi-check-circle"></i> 已完成，点击获取次数');
+            $('#ad-countdown').fadeOut(); // 隐藏右上角倒计时
+        }
+    }, 1000);
+}
+
+function closeAdModal() {
+    clearInterval(adTimer); // 清除定时器
+    var video = document.getElementById('ad-video');
+    if (video) { video.pause(); video.currentTime = 0; } // 停止视频
+
+    // 淡出隐藏弹窗
+    $('#ad-overlay').fadeOut(200, function() {
+        $('#ad-countdown').show();
+        // 重置底部按钮状态
+        $('#btn-ad-action').prop('disabled', true)
+           .removeClass('btn-success').addClass('btn-secondary')
+           .attr('onclick', 'closeAdModal()');
+    });
+}
+
+function finishAd() {
+    // 防止重复点击
+    $('#btn-ad-action').prop('disabled', true)
+        .html('<i class="bi bi-arrow-repeat"></i> 处理中...');
+
+    // 请求后端增加次数
+    $.ajax({
+        url: '/user/api/watch_ad',
+        type: 'POST',
+        success: function(data) {
+            showToast('获得1次爬取机会！当前剩余：' + data.quota + '次', 'success');
+            currentQuota = data.quota;
+            $('#quota-display').text(currentQuota);
+            closeAdModal();
+
+            // 关键逻辑：如果之前有因次数不足而挂起的爬取任务，现在自动执行
+            if (pendingKeyword) {
+                var kw = pendingKeyword;
+                pendingKeyword = null; // 清空暂存
+                setTimeout(function() { startCrawl(kw); }, 400); // 稍作延迟后自动爬取
+            }
+        },
+        error: function(xhr) {
+            var resp = xhr.responseJSON || {};
+            showToast(resp.error || '获取次数失败', 'error');
+            closeAdModal();
+        }
+    });
+}
+
+// ========== 4. 历史记录加载逻辑 ==========
+function loadHistory() {
+    $.ajax({
+        url: '/user/api/my_requests',
+        success: function(data) {
+            var tbody = $('#history-tbody');
+            if (!data || data.length === 0) {
+                tbody.html('<tr><td colspan="5" class="text-center text-muted py-3">暂无记录</td></tr>');
+                return;
+            }
+            var html = '';
+            // 遍历数据生成表格行
+            data.forEach(function(r) {
+                html += '<tr>' +
+                    '<td><strong>' + escapeHtml(r.keyword) + '</strong></td>' +
+                    '<td><span class="status-badge status-' + r.status + '">' +
+                        getStatusText(r.status) + '</span></td>' +
+                    '<td>' + (r.result_count || '-') + '</td>' +
+                    '<td>' + r.created_at + '</td>' +
+                    '<td><small class="text-muted">' + (r.remark || '-') + '</small></td>' +
+                    '</tr>';
+            });
+            tbody.html(html);
+        },
+        error: function() {
+            $('#history-tbody').html(
+                '<tr><td colspan="5" class="text-center text-danger">加载失败</td></tr>'
+            );
+        }
+    });
+}
+
+// 辅助函数：将英文状态码转换为中文显示
+function getStatusText(status) {
+    var map = {
+        pending: '待审核',
+        approved: '已通过',
+        completed: '已完成',
+        rejected: '已拒绝'
+    };
+    return map[status] || status;
+}
+
+// 辅助函数：HTML 实体转义，防止 XSS
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;")
+               .replace(/'/g, "&#039;");
+}
+</script>
+{% endblock %}
