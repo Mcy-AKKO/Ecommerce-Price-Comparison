@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+
+{% block extra_css %}
+<style>
+    .crawl-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 40px;
+        color: white;
+        margin-bottom: 30px;
+    }
+    .crawl-input {
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.3);
+        color: white;
+        font-size: 1.2rem;
+        padding: 15px 20px;
+    }
+    .crawl-input:focus {
+        background: rgba(255,255,255,0.3);
+        border-color: white;
+        color: white;
+        box-shadow: none;
+    }
+    .crawl-input::placeholder { color: rgba(255,255,255,0.7); }
+    .crawl-btn {
+        background: white;
+        color: #667eea;
+        border: none;
+        padding: 15px 30px;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    .crawl-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
+    .keywords-list {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+    .keyword-tag {
+        display: inline-block;
+        padding: 8px 16px;
+        margin: 5px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .keyword-tag:hover { transform: scale(1.05); }
+    .result-stats {
+        text-align: center;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        margin-top: 20px;
+    }
+    .result-number { font-size: 2rem; font-weight: bold; color: #28a745; }
+    .progress { height: 30px; border-radius: 15px; margin-top: 20px; }
+    .progress-bar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-weight: bold;
+        line-height: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="crawl-card">
+        <div class="text-center">
+            <i class="bi bi-cloud-download fs-1"></i>
+            <h3 class="mt-3">商品数据爬取</h3>
+            <p class="opacity-75">输入关键词，从慢慢买和什么值得买爬取商品数据</p>
+        </div>
+
+        <div class="row g-2 mt-3">
+            <div class="col-md-8">
+                <input type="text" id="keyword-input" class="form-control crawl-input"
+                       placeholder="输入关键词，如：iPhone 17">
+            </div>
+            <div class="col-md-4">
+                <button id="crawl-btn" class="btn crawl-btn w-100"><i class="bi bi-cloud-download"></i> 开始爬取
+                </button>
+            </div>
+        </div>
+
+        <div class="form-check mt-3 text-center">
+            <input class="form-check-input" type="checkbox" id="update-existing" checked>
+            <label class="form-check-label">更新已有数据（删除旧数据）</label>
+        </div>
+    </div>
+
+    <div class="keywords-list">
+        <h6 class="mb-3"><i class="bi bi-tags"></i> 热门关键词（点击快速爬取）</h6>
+        <div>
+            <span class="keyword-tag" data-keyword="iPhone 17">iPhone 17</span>
+            <span class="keyword-tag" data-keyword="华为 Mate 70">华为 Mate 70</span>
+            <span class="keyword-tag" data-keyword="小米 15">小米 15</span>
+            <span class="keyword-tag" data-keyword="OPPO Find X8">OPPO Find X8</span>
+            <span class="keyword-tag" data-keyword="vivo X200">vivo X200</span>
+            <span class="keyword-tag" data-keyword="充电宝">充电宝</span>
+            <span class="keyword-tag" data-keyword="耳机">耳机</span>
+        </div>
+    </div>
+
+    <div id="result-area" style="display: none;">
+        <div class="result-stats">
+            <i class="bi bi-check-circle-fill text-success fs-2"></i>
+            <h5 id="result-message" class="mt-2"></h5>
+            <div class="result-number" id="result-count">0</div>
+            <div class="text-muted">条商品数据已入库</div>
+            <div class="progress">
+                <div id="progress-bar" class="progress-bar" style="width: 0%">0%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('#crawl-btn').click(function() {
+            const keyword = $('#keyword-input').val();
+            crawlKeyword(keyword);
+        });
+
+        $('.keyword-tag').click(function() {
+            const keyword = $(this).data('keyword');
+            $('#keyword-input').val(keyword);
+            crawlKeyword(keyword);
+        });
+    });
+
+    function crawlKeyword(keyword) {
+        if (!keyword.trim()) {
+            showToast('请输入关键词', 'warning');
+            return;
+        }
+
+        const updateExisting = $('#update-existing').is(':checked');
+        const btn = $('#crawl-btn');
+        const originalText = btn.html();
+
+        btn.html('<span class="loading-spinner"></span> 爬取中...').prop('disabled', true);
+
+        $('#result-area').show();
+        $('#result-message').text('正在爬取数据，请稍候...');
+        $('#result-count').text('0');
+        $('#progress-bar').css('width', '50%').text('50%');
+
+        $.ajax({
+            url: '/admin/api/crawl',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ keyword, update_existing: updateExisting }),
+            success: function(data) {
+                $('#result-message').text('爬取完成！');
+                $('#result-count').text(data.count);
+                $('#progress-bar').css('width', '100%').text('100%');
+                showToast(`成功爬取 ${data.count} 条商品数据`, 'success');
+            },
+            error: function(xhr) {
+                $('#result-message').text(xhr.responseJSON?.error || '爬取失败，请重试');
+                $('#progress-bar').css('width', '100%').addClass('bg-danger').text('失败');
+                showToast(xhr.responseJSON?.error || '爬取失败', 'error');
+            },
+            complete: function() {
+                btn.html(originalText).prop('disabled', false);
+                setTimeout(() => $('#progress-bar').removeClass('bg-danger'), 3000);
+            }
+        });
+    }
+</script>
+{% endblock %}
