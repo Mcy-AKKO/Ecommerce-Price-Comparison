@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- 第一行：用户信息 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card-modern p-4 text-center">
+                <div class="user-avatar mx-auto mb-3"
+                     style="width: 80px; height: 80px; font-size: 2rem; line-height: 80px;">
+                    {{ current_user.username[0].upper() }}
+                </div>
+                <h4 class="fw-bold">{{ current_user.username }}</h4>
+                <p class="text-muted">{{ current_user.email }}</p>
+                <hr>
+                <div class="row">
+                    <div class="col-6"><small class="text-muted">注册时间</small>
+                        <p class="mb-0">{{ current_user.created_at.strftime('%Y-%m-%d') }}</p></div>
+                    <div class="col-6">
+                        <small class="text-muted">账户状态</small>
+                        <p class="mb-0">{% if current_user.status == 'active' %}<span
+                                class="badge bg-success">正常</span>{% else %}<span class="badge bg-danger">禁用</span>{%
+                            endif %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第二行：四个功能卡片（一样大） -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card-modern p-4 hover-card cursor-pointer h-100"
+                 onclick="location.href='{{ url_for('user_products') }}'">
+                <div class="d-flex justify-content-between">
+                    <div><i class="bi bi-grid-3x3-gap-fill fs-2 text-primary"></i><h5 class="mt-2">发现好物</h5>
+                        <p class="text-muted small">浏览所有商品</p></div>
+                    <i class="bi bi-arrow-right fs-4 text-muted"></i></div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-modern p-4 hover-card cursor-pointer h-100"
+                 onclick="location.href='{{ url_for('user_analysis') }}'">
+                <div class="d-flex justify-content-between">
+                    <div><i class="bi bi-graph-up fs-2 text-success"></i><h5 class="mt-2">价格分析</h5>
+                        <p class="text-muted small">查看价格趋势</p></div>
+                    <i class="bi bi-arrow-right fs-4 text-muted"></i></div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-modern p-4 hover-card cursor-pointer h-100"
+                 onclick="location.href='{{ url_for('user_request_crawl') }}'">
+                <div class="d-flex justify-content-between">
+                    <div><i class="bi bi-send fs-2 text-warning"></i><h5 class="mt-2">申请爬取</h5>
+                        <p class="text-muted small">提交爬取请求</p></div>
+                    <i class="bi bi-arrow-right fs-4 text-muted"></i></div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-modern p-4 hover-card cursor-pointer h-100"
+                 onclick="location.href='{{ url_for('user_profile') }}'">
+                <div class="d-flex justify-content-between">
+                    <div><i class="bi bi-person-gear fs-2 text-info"></i><h5 class="mt-2">个人中心</h5>
+                        <p class="text-muted small">修改个人信息</p></div>
+                    <i class="bi bi-arrow-right fs-4 text-muted"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第三行：爬取请求表格 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card-modern p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-clock-history"></i> 我的爬取请求</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                        <tr>
+                            <th>关键词</th>
+                            <th>状态</th>
+                            <th>结果数</th>
+                            <th>请求时间</th>
+                            <th>备注</th>
+                        </tr>
+                        </thead>
+                        <tbody id="requests-tbody">
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="loading-spinner"></div>
+                                加载中...
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-card { transition: all 0.3s ease; cursor: pointer; }
+    .hover-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
+    .status-pending { background: #fef3c7; color: #d97706; }
+    .status-approved { background: #dbeafe; color: #2563eb; }
+    .status-completed { background: #d1fae5; color: #10b981; }
+    .status-rejected { background: #fee2e2; color: #ef4444; }
+</style>
+
+<script>
+    $(document).ready(function() {
+        loadMyRequests();
+    });
+
+    function loadMyRequests() {
+        $.ajax({
+            url: '/user/api/my_requests',
+            success: function(requests) {
+                const tbody = $('#requests-tbody');
+                if (!requests || requests.length === 0) {
+                    tbody.html('<tr><td colspan="5" class="text-center text-muted py-4">暂无请求记录</td></tr>');
+                    return;
+                }
+                let html = '';
+                requests.forEach(r => {
+                    html += `<tr>
+                        <td><strong>${escapeHtml(r.keyword)}</strong></td>
+                        <td><span class="status-badge status-${r.status}">${getStatusText(r.status)}</span></td>
+                        <td>${r.result_count || '-'}</td>
+                        <td>${r.created_at}</td>
+                        <td><small class="text-muted">${r.remark || '-'}</small></td>
+                    </tr>`;
+                });
+                tbody.html(html);
+            },
+            error: function() {
+                $('#requests-tbody').html('<tr><td colspan="5" class="text-center text-danger">加载失败</td></tr>');
+            }
+        });
+    }
+
+    function getStatusText(status) {
+        const map = { pending: '待审核', approved: '已通过', completed: '已完成', rejected: '已拒绝' };
+        return map[status] || status;
+    }
+</script>
+{% endblock %}
